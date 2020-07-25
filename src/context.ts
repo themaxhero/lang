@@ -145,9 +145,16 @@ function get<T>(ctx0: ContextData<T>, key: string): T {
   throw new KeyNotFoundError(key);
 }
 
+/**
+ * Used for variable scope management.
+ * A simple red black tree data type with two operations: get and set.
+ */
 export class Context<T> {
   private static _empty = new Context<unknown>(empty);
 
+  /**
+   * Create an empty context.
+   */
   public static empty<T>(): Context<T> {
     return Context._empty as Context<T>;
   }
