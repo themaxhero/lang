@@ -1,128 +1,115 @@
-type ContextData<T> =
-  | { tag: "empty" }
-  | {
-    tag: "red";
-    key: string;
-    value: T;
-    left: ContextData<T>;
-    right: ContextData<T>;
-  }
-  | {
-    tag: "black";
-    key: string;
-    value: T;
-    left: ContextData<T>;
-    right: ContextData<T>;
-  };
+type Tree<T> =
+  | { ctor: "red"; key: string; value: T; left: Tree<T>; right: Tree<T> }
+  | { ctor: "black"; key: string; value: T; left: Tree<T>; right: Tree<T> }
+  | { ctor: "empty" };
 
-const empty: ContextData<unknown> = { tag: "empty" };
+// deno-lint-ignore no-explicit-any
+const empty: Tree<any> = { ctor: "empty" };
 
-function newCtxData<T>(
+function redBlack<T>(
   tag: "red" | "black",
   key: string,
   value: T,
-  left: ContextData<T>,
-  right: ContextData<T>,
-): ContextData<T> {
-  return { tag, key, value, left, right };
+  left: Tree<T>,
+  right: Tree<T>,
+): Tree<T> {
+  return { ctor: tag, key, value, left, right };
 }
 
-function newRedCtxData<T>(
+function red<T>(
   key: string,
   value: T,
-  left: ContextData<T>,
-  right: ContextData<T>,
-): ContextData<T> {
-  return newCtxData("red", key, value, left, right);
+  left: Tree<T>,
+  right: Tree<T>,
+): Tree<T> {
+  return redBlack("red", key, value, left, right);
 }
 
-function newBlackCtxData<T>(
+function black<T>(
   key: string,
   value: T,
-  left: ContextData<T>,
-  right: ContextData<T>,
-): ContextData<T> {
-  return newCtxData("black", key, value, left, right);
+  left: Tree<T>,
+  right: Tree<T>,
+): Tree<T> {
+  return redBlack("black", key, value, left, right);
 }
 
 function balance<T>(
-  color: "red" | "black",
+  ctor: "red" | "black",
   key: string,
   value: T,
-  left: ContextData<T>,
-  right: ContextData<T>,
-): ContextData<T> {
-  if (right.tag === "red") {
-    if (left.tag === "red") {
-      return newRedCtxData(
+  left: Tree<T>,
+  right: Tree<T>,
+): Tree<T> {
+  if (right.ctor === "red") {
+    if (left.ctor === "red") {
+      return red(
         key,
         value,
-        newBlackCtxData(left.key, left.value, left.left, left.right),
-        newBlackCtxData(right.key, right.value, right.left, right.right),
+        black(left.key, left.value, left.left, left.right),
+        black(right.key, right.value, right.left, right.right),
       );
     }
-    return newCtxData(
-      color,
+    return redBlack(
+      ctor,
       right.key,
       right.value,
-      newRedCtxData(key, value, left, right.left),
+      red(key, value, left, right.left),
       right.right,
     );
   }
 
-  if (left.tag === "red") {
+  if (left.ctor === "red") {
     const ll = left.left;
 
-    if (ll?.tag == "red") {
-      return newRedCtxData(
+    if (ll?.ctor == "red") {
+      return red(
         left.key,
         left.value,
-        newBlackCtxData(ll.key, ll.value, ll.left, ll.left),
-        newBlackCtxData(key, value, left.left, right),
+        black(ll.key, ll.value, ll.left, ll.left),
+        black(key, value, left.left, right),
       );
     }
   }
 
-  return newCtxData(color, key, value, left, right);
+  return redBlack(ctor, key, value, left, right);
 }
 
 function setHelp<T>(
-  ctx: ContextData<T>,
+  tree: Tree<T>,
   key: string,
   value: T,
-): ContextData<T> {
-  if (ctx.tag === "empty") {
-    return newRedCtxData(
+): Tree<T> {
+  if (tree.ctor === "empty") {
+    return red(
       key,
       value,
-      empty as ContextData<T>,
-      empty as ContextData<T>,
-    );
-  } else if (key === ctx.key) {
-    return newCtxData(ctx.tag, ctx.key, value, ctx.left, ctx.right);
-  } else if (key < ctx.key) {
-    return balance(
-      ctx.tag,
-      ctx.key,
-      ctx.value,
-      setHelp(ctx.left, key, value),
-      ctx.right,
-    );
-  } else {
-    return balance(
-      ctx.tag,
-      ctx.key,
-      ctx.value,
-      ctx.left,
-      setHelp(ctx.right, key, value),
+      empty as Tree<T>,
+      empty as Tree<T>,
     );
   }
-}
 
-function set<T>(ctx0: ContextData<T>, key: string, value: T): ContextData<T> {
-  const ctx1 = setHelp(ctx0, key, value);
-  ctx1.tag = "black";
-  return ctx1;
+  const treeKey = tree.key;
+
+  if (key === treeKey) {
+    return redBlack(tree.ctor, treeKey, value, tree.left, tree.right);
+  } else if (key < treeKey) {
+    return balance(
+      tree.ctor,
+      treeKey,
+      tree.value,
+      setHelp(tree.left, key, value),
+      tree.right,
+    );
+  }
+
+  return balance(
+    tree.ctor,
+    treeKey,
+    tree.value,
+    tree.left,
+    setHelp(tree.right, key, value),
+  );
 }
 
 export class KeyNotFoundError extends Error {
@@ -133,33 +120,22 @@ export class KeyNotFoundError extends Error {
   }
 }
 
-function get<T>(ctx0: ContextData<T>, key: string): T {
-  for (
-    let ctx1 = ctx0;
-    ctx1.tag != "empty";
-    ctx1 = (key < ctx1.key) ? ctx1.left : ctx1.right
-  ) {
-    if (key === ctx1.key) return ctx1.value;
-  }
-
-  throw new KeyNotFoundError(key);
-}
-
 /**
  * Used for variable scope management.
  * A simple red black tree data type with two operations: get and set.
  */
 export class Context<T> {
-  private static _empty = new Context<unknown>(empty);
+  // deno-lint-ignore no-explicit-any
+  private static _empty = new Context<any>(empty);
 
   /**
    * Create an empty context.
    */
   public static empty<T>(): Context<T> {
-    return Context._empty as Context<T>;
+    return Context._empty;
   }
 
-  private constructor(private data: ContextData<T>) {}
+  private constructor(private tree: Tree<T>) {}
 
   /**
    * Get the value associated with a key.
@@ -168,7 +144,15 @@ export class Context<T> {
    * @param key 
    */
   public get(key: string): T {
-    return get(this.data, key);
+    for (
+      let tree = this.tree;
+      tree.ctor != "empty";
+      tree = (key < tree.key) ? tree.left : tree.right
+    ) {
+      if (key === tree.key) return tree.value;
+    }
+
+    throw new KeyNotFoundError(key);
   }
 
   /**
@@ -179,7 +163,9 @@ export class Context<T> {
    * @param value 
    */
   public set(key: string, value: T): Context<T> {
-    return new Context<T>(set(this.data, key, value));
+    const tree = setHelp(this.tree, key, value);
+    tree.ctor = "black";
+    return new Context(tree);
   }
 }
 

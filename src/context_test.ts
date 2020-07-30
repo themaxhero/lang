@@ -1,6 +1,4 @@
-import {
-  assertEquals,
-} from "https://deno.land/std/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std/testing/asserts.ts";
 import Context from "./context.ts";
 
 Deno.test("optimization: empty never creates new objects", () => {
