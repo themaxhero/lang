@@ -149,7 +149,8 @@ export class Context<T> {
       tree.ctor != "empty";
       tree = (key < tree.key) ? tree.left : tree.right
     ) {
-      if (key === tree.key) return tree.value;
+      // TODO: remove the undefined check
+      if (key === tree.key && tree.value !== undefined) return tree.value;
     }
 
     throw new KeyNotFoundError(key);
@@ -166,6 +167,15 @@ export class Context<T> {
     const tree = setHelp(this.tree, key, value);
     tree.ctor = "black";
     return new Context(tree);
+  }
+
+  /**
+   * Remove a key-value pair from the context.
+   * If the key is not found, no changes are made.
+   */
+  public del(key: string): Context<T> {
+    // TODO: implement removal
+    return this.set(key, undefined as any);
   }
 }
 
